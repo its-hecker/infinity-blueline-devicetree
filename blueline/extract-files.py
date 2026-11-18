@@ -1,0 +1,113 @@
+#!/usr/bin/env -S PYTHONPATH=../../../../tools/extract-utils python3
+#
+# SPDX-FileCopyrightText: 2024 The LineageOS Project
+# SPDX-License-Identifier: Apache-2.0
+#
+
+from extract_utils.extract import extract_fns_user_type
+from extract_utils.extract_pixel import (
+    extract_pixel_factory_image,
+    extract_pixel_firmware,
+    pixel_factory_image_regex,
+    pixel_firmware_regex,
+)
+from extract_utils.fixups_blob import (
+    blob_fixup,
+    blob_fixups_user_type,
+)
+from extract_utils.fixups_lib import (
+    lib_fixups,
+    lib_fixups_user_type,
+)
+from extract_utils.main import (
+    ExtractUtils,
+    ExtractUtilsModule,
+)
+
+namespace_imports = [
+    'device/google/crosshatch',
+    'hardware/google/interfaces',
+    'hardware/google/pixel',
+    'hardware/google/pixel/health',
+    'hardware/google/pixel/pixelstats',
+    'hardware/qcom/sdm845/display',
+    'hardware/qcom/sdm845/gps',
+    'hardware/qcom/wlan/legacy',
+]
+
+
+def lib_fixup_vendor_suffix(lib: str, partition: str, *args, **kwargs):
+    return f'{lib}_{partition}' if partition == 'vendor' else None
+
+
+lib_fixups: lib_fixups_user_type = {
+    **lib_fixups,
+    (
+        'vendor.qti.hardware.tui_comm@1.0',
+        'vendor.qti.imsrtpservice@3.0',
+    ): lib_fixup_vendor_suffix,
+}
+
+blob_fixups: blob_fixups_user_type = {
+    (
+        'vendor/bin/hw/android.hardware.identity@1.0-service.citadel',
+        'vendor/lib64/android.hardware.identity@1.0-impl.nos.so',
+    ): blob_fixup()
+        .replace_needed('android.hardware.identity-V3-ndk_platform.so', 'android.hardware.identity-V3-ndk.so')
+        .replace_needed('android.hardware.keymaster-V3-ndk_platform.so', 'android.hardware.keymaster-V3-ndk.so'),
+    'vendor/bin/hw/android.hardware.rebootescrow-service.citadel': blob_fixup()
+        .replace_needed('android.hardware.rebootescrow-V1-ndk_platform.so', 'android.hardware.rebootescrow-V1-ndk.so')
+        .replace_needed('libcrypto.so', 'libcrypto-v33.so')
+        .add_needed('libcrypto_shim.so'),
+    (
+        'vendor/bin/hw/citadeld',
+        'vendor/lib64/libnos_citadeld_proxy.so',
+    ): blob_fixup()
+        .replace_needed('android.frameworks.stats-V1-ndk_platform.so', 'android.frameworks.stats-V1-ndk.so')
+        .replace_needed('pixelatoms-cpp.so', 'pixelatoms-cpp-legacy.so'),
+    'vendor/bin/hw/vendor.qti.media.c2@1.0-service': blob_fixup()
+        .replace_needed('libavservices_minijail_vendor.so', 'libavservices_minijail.so'),
+    (
+        'vendor/lib64/android.hardware.keymaster@4.1-impl.nos.so',
+        'vendor/lib64/libwvhidl@1.3.so',
+    ): blob_fixup()
+        .add_needed('libcrypto_shim.so'),
+    'vendor/lib64/hw/com.qti.chi.override.so': blob_fixup()
+        .replace_needed('android.hardware.power-V1-ndk_platform.so', 'android.hardware.power-V1-ndk.so'),
+    (
+        'vendor/bin/mm-pp-dpps',
+        'vendor/lib64/hw/camera.sdm845.so',
+        'vendor/lib64/camera/components/com.qti.node.eisv2.so',
+        'vendor/lib64/camera/components/com.qti.node.eisv3.so',
+    ): blob_fixup()
+        .replace_needed('libtinyxml2.so', 'libtinyxml2-v34.so'),
+    'vendor/bin/hw/android.hardware.biometrics.fingerprint@2.1-service.fpc': blob_fixup()
+        .binary_regex_replace(b'_ZN7android10frameworks5stats', b'_ZN7lineage10frameworks5stats')
+        .binary_regex_replace(b'android\\.frameworks\\.stats@1\\.0', b'lineage.frameworks.stats@1.0'),
+    'system_ext/lib64/libsecureuisvc_jni.so': blob_fixup()
+        .add_needed('libgui_shim_secureui.so'),
+}  # fmt: skip
+
+extract_fns: extract_fns_user_type = {
+    pixel_factory_image_regex: extract_pixel_factory_image,
+    pixel_firmware_regex: extract_pixel_firmware,
+}
+
+module = ExtractUtilsModule(
+    'blueline',
+    'google',
+    device_rel_path='device/google/crosshatch/blueline',
+    blob_fixups=blob_fixups,
+    lib_fixups=lib_fixups,
+    namespace_imports=namespace_imports,
+    add_firmware_proprietary_file=True,
+    extract_fns=extract_fns,
+)
+
+module.add_proprietary_file('proprietary-files-carriersettings.txt')
+module.add_proprietary_file('proprietary-files-radio.txt')
+module.add_proprietary_file('proprietary-files-vendor.txt')
+
+if __name__ == '__main__':
+    utils = ExtractUtils.device(module)
+    utils.run()

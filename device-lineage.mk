@@ -1,0 +1,96 @@
+#
+# Copyright (C) 2018-2021 The LineageOS Project
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# Overlays
+DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay-lineage
+
+# Add common definitions for Qualcomm
+$(call inherit-product, hardware/qcom-caf/common/common.mk)
+
+# AiAi Config
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/allowlist_com.google.android.as.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/sysconfig/allowlist_com.google.android.as.xml
+
+# Camera
+PRODUCT_PRODUCT_PROPERTIES += \
+    ro.vendor.camera.extensions.package=com.google.android.apps.camera.services \
+    ro.vendor.camera.extensions.service=com.google.android.apps.camera.services.extensions.service.PixelExtensions
+
+# Elmyra
+PRODUCT_PACKAGES += \
+    ElmyraService
+
+# EUICC
+PRODUCT_COPY_FILES += \
+    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_PRODUCT)/etc/permissions/android.hardware.telephony.euicc.xml
+
+# Firmware mount point
+PRODUCT_PACKAGES += \
+    vendor_firmware_mnt_mountpoint
+
+# Google Assistant
+PRODUCT_PRODUCT_PROPERTIES += ro.opa.eligible_device=true
+
+# Lineage Health
+include hardware/google/pixel/lineage_health/device.mk
+
+$(call soong_config_set,lineage_health,charging_control_charging_path,/sys/class/power_supply/battery/charge_disable)
+$(call soong_config_set,lineage_health,charging_control_charging_enabled,0)
+$(call soong_config_set,lineage_health,charging_control_charging_disabled,1)
+
+# The old SDM LiveDisplay service repeatedly aborted when opening the
+# display backend during the last Pixel 3 Android 17 boot investigation.
+# It is not required to boot SurfaceFlinger. Keep disabled for the initial
+# Infinity-X boot and enable only after HWC2 is stable on both Pixel 3 SKUs.
+PIXEL3_ENABLE_LIVEDISPLAY ?= false
+ifeq ($(PIXEL3_ENABLE_LIVEDISPLAY),true)
+PRODUCT_PACKAGES += \
+    vendor.lineage.livedisplay-service.sdm
+
+$(call soong_config_set_bool,livedisplay_sdm,enable_dm,false)
+$(call soong_config_set_bool,livedisplay_sdm,enable_pa,true)
+endif
+
+# Preserve the legacy SDM845 gralloc mapper used by the first bootable Pixel 3 build.
+$(call soong_config_set_bool,libui,legacy_gralloc,true)
+
+# Parts
+PRODUCT_PACKAGES += \
+    GoogleParts
+
+# RCS
+PRODUCT_PACKAGES += \
+    PresencePolling \
+    RcsService
+
+# Build necessary packages for vendor
+
+# CHRE
+PRODUCT_PACKAGES += \
+    chre_daemon_msm
+
+# Identity credential
+PRODUCT_PACKAGES += \
+    android.hardware.identity_credential.xml
+
+# Telephony
+PRODUCT_PACKAGES += \
+    qti-telephony-hidl-wrapper \
+    qti-telephony-hidl-wrapper-prd \
+    qti_telephony_hidl_wrapper.xml \
+    qti_telephony_hidl_wrapper_prd.xml \
+    qti-telephony-utils \
+    qti_telephony_utils.xml
+
+# VNDK FWK detect
+PRODUCT_PACKAGES += \
+    libvndfwk_detect_jni.qti.vendor
+
+# Properties
+TARGET_VENDOR_PROP := $(LOCAL_PATH)/vendor.prop
+
+# Preserve the legacy vendor app labels. Runtime SELinux remains enforcing.
+PRODUCT_ENFORCE_SELINUX_TREBLE_LABELING := false
