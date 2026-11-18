@@ -41,20 +41,15 @@ $(call soong_config_set,lineage_health,charging_control_charging_path,/sys/class
 $(call soong_config_set,lineage_health,charging_control_charging_enabled,0)
 $(call soong_config_set,lineage_health,charging_control_charging_disabled,1)
 
-# The old SDM LiveDisplay service repeatedly aborted when opening the
-# display backend during the last Pixel 3 Android 17 boot investigation.
-# It is not required to boot SurfaceFlinger. Keep disabled for the initial
-# Infinity-X boot and enable only after HWC2 is stable on both Pixel 3 SKUs.
-PIXEL3_ENABLE_LIVEDISPLAY ?= false
-ifeq ($(PIXEL3_ENABLE_LIVEDISPLAY),true)
+# LiveDisplay
 PRODUCT_PACKAGES += \
     vendor.lineage.livedisplay-service.sdm
 
+# The Pixel 3 exposes picture adjustment; retain its existing feature set.
 $(call soong_config_set_bool,livedisplay_sdm,enable_dm,false)
 $(call soong_config_set_bool,livedisplay_sdm,enable_pa,true)
-endif
 
-# Preserve the legacy SDM845 gralloc mapper used by the first bootable Pixel 3 build.
+# Keep the legacy graphics mapper available for the SDM845 display HAL.
 $(call soong_config_set_bool,libui,legacy_gralloc,true)
 
 # Parts

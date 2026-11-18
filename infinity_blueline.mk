@@ -1,36 +1,49 @@
-# SPDX-License-Identifier: Apache-2.0
-# Project Infinity-X 17 / Google Pixel 3 (blueline)
+# Pixel 3 Infinity-X product built from untouched LineageOS 24.0 hardware files
 INFINITY_MAINTAINER := Hecker
-WITH_GAPPS ?= false
+WITH_GAPPS ?= true
 TARGET_HAS_UDFPS := false
 TARGET_FACE_UNLOCK_SUPPORTED := false
 
-# Development-only ADB flag (secure ADB for public builds).
+#
+# Copyright (C) 2018-2021 The LineageOS Project
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# Unofficial vanilla LineageOS 24.0 / Android 17 for Pixel 3.
+
+# Pixel 3's userdebug bring-up needs the Lineage debug *build* switch, not
+# just USB properties.  Without it Lineage's common.mk sets
+# PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG=true and ro.adb.secure=1, leaving adbd
+# disabled despite the persist.sys.usb.config=adb image default.
+# Resolve this before inheriting vendor/infinity/config/common_full_phone.mk.
 PIXEL3_DEV_USB_ADB ?= $(if $(filter userdebug eng,$(TARGET_BUILD_VARIANT)),true,false)
 ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),true)
 ifeq ($(filter userdebug eng,$(TARGET_BUILD_VARIANT)),)
-$(error PIXEL3_DEV_USB_ADB=true requires userdebug or eng)
+$(error PIXEL3_DEV_USB_ADB=true requires a userdebug or eng build)
 endif
 WITH_ADB_INSECURE := true
-# Prevent Infinity-X from disabling ro.debuggable on this diagnostic userdebug.
-PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG := false
 else ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),false)
+# Restore normal Lineage defaults when explicitly disabled.
 WITH_ADB_INSECURE :=
 else
 $(error PIXEL3_DEV_USB_ADB must be true or false)
 endif
 
+# Inherit some common Lineage stuff.
 $(call inherit-product, vendor/infinity/config/common_full_phone.mk)
-$(call inherit-product, device/google/crosshatch/aosp_blueline.mk)
-include device/google/crosshatch/blueline/device-lineage.mk
-include device/google/crosshatch/development/adb.mk
 
+# Inherit device configuration
+$(call inherit-product, device/google/crosshatch/aosp_blueline.mk)
+
+include device/google/crosshatch/blueline/device-lineage.mk
+
+# Device identifier. This must come after all inclusions
 PRODUCT_BRAND := google
-PRODUCT_MANUFACTURER := Google
 PRODUCT_MODEL := Pixel 3
 PRODUCT_NAME := infinity_blueline
-PRODUCT_DEVICE := blueline
 
+# Boot animation
 TARGET_SCREEN_HEIGHT := 2160
 TARGET_SCREEN_WIDTH := 1080
 
@@ -39,9 +52,7 @@ PRODUCT_BUILD_PROP_OVERRIDES += \
     BuildFingerprint=google/blueline/blueline:12/SP1A.210812.016.C2/8618562:user/release-keys \
     DeviceProduct=blueline
 
-# Keep makefile properties as single tokens; PRODUCT_MODEL provides "Pixel 3".
-PRODUCT_PRODUCT_PROPERTIES += \
-    ro.infinity.soc=SDM845 \
-    ro.infinity.camera=12.2MP
-
 $(call inherit-product, vendor/google/blueline/blueline-vendor.mk)
+
+# Development USB debugging defaults for the Pixel 3 port.
+include device/google/crosshatch/development/adb.mk
