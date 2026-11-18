@@ -1,0 +1,53 @@
+name: Verify source parity with latest booted LineageOS Pixel 3
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: false
+      - name: Compare tracked files with pinned LineageOS snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add upstream-lineage https://github.com/its-hecker/android_device_google_crosshatch.git
+          git fetch --depth=1 upstream-lineage +refs/heads/lineage-24.0:refs/remotes/upstream-lineage/lineage-24.0
+          SOURCE_SHA=$(git rev-parse refs/remotes/upstream-lineage/lineage-24.0)
+          test "$SOURCE_SHA" = "f30f51da5b8f9a50d031f409b96b5d4a2eb35d68"
+          git diff --name-only "$SOURCE_SHA" HEAD > /tmp/changed.txt
+          echo "Differences from the LineageOS device source:"
+          cat /tmp/changed.txt
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/mirror-lineage.yml|.github/workflows/verify-lineage-parity.yml) ;;
+              AndroidProducts.mk|infinity_blueline.mk) ;;
+
+              *) echo "Unexpected non-LineageOS device file change: $file" >&2; exit 1 ;;
+            esac
+          done < /tmp/changed.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          original = Path("lineage_blueline.mk").read_text()
+          expected = original.replace("vendor/lineage/config/common_full_phone.mk", "vendor/infinity/config/common_full_phone.mk")
+          expected = expected.replace("PRODUCT_NAME := lineage_blueline", "PRODUCT_NAME := infinity_blueline")
+          expected = ("# Pixel 3 Infinity-X product built from untouched LineageOS 24.0 hardware files\n"
+                      "INFINITY_MAINTAINER := Hecker\n"
+                      "WITH_GAPPS ?= true\n"
+                      "TARGET_HAS_UDFPS := false\n"
+                      "TARGET_FACE_UNLOCK_SUPPORTED := false\n\n" + expected)
+          actual = Path("infinity_blueline.mk").read_text()
+          assert actual == expected, "Infinity product diverged from the latest lineage product"
+          assert Path("AndroidProducts.mk").read_text() == (
+              "# Only the Infinity-X Pixel 3 product (hardware files otherwise match LineageOS)\n"
+              "PRODUCT_MAKEFILES := $(LOCAL_DIR)/infinity_blueline.mk\n"
+              "COMMON_LUNCH_CHOICES := infinity_blueline-cp2a-userdebug\n")
+          print("Infinity product derived exactly from LineageOS product: PASS")
+          PY
+          echo "Source parity: PASS, no unapproved old port changes"
