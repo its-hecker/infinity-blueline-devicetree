@@ -1,6 +1,9 @@
 # Pixel 3 Infinity-X product built from untouched LineageOS 24.0 hardware files
 INFINITY_MAINTAINER := Hecker
 WITH_GAPPS ?= true
+# Build Android Mainline APEX modules from available source instead of absent Google prebuilts.
+# Google Play services remains inherited from vendor/pixel/gms.
+PRODUCT_MODULE_BUILD_FROM_SOURCE := true
 TARGET_HAS_UDFPS := false
 TARGET_FACE_UNLOCK_SUPPORTED := false
 
