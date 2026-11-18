@@ -40,6 +40,7 @@ jobs:
           expected = ("# Pixel 3 Infinity-X product built from untouched LineageOS 24.0 hardware files\n"
                       "INFINITY_MAINTAINER := Hecker\n"
                       "WITH_GAPPS ?= true\n"
+                     "PRODUCT_MODULE_BUILD_FROM_SOURCE := true\n"
                       "TARGET_HAS_UDFPS := false\n"
                       "TARGET_FACE_UNLOCK_SUPPORTED := false\n\n" + expected)
           actual = Path("infinity_blueline.mk").read_text()
