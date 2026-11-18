@@ -1,0 +1,70 @@
+name: Reset device to current LineageOS 24.0 baseline
+on:
+  push:
+    paths:
+      - .github/workflows/mirror-lineage.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: refresh-lineage-blueline
+  cancel-in-progress: false
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          lfs: false
+      - name: Replace old Infinity files with exact LineageOS source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Hecker
+          git config user.email 118846180+its-hecker@users.noreply.github.com
+          git remote add lineage-source https://github.com/its-hecker/android_device_google_crosshatch.git
+          git fetch --no-tags --depth=1 lineage-source +refs/heads/lineage-24.0:refs/remotes/lineage-source/lineage-24.0
+          SOURCE_SHA=$(git rev-parse refs/remotes/lineage-source/lineage-24.0)
+          test "$SOURCE_SHA" = "f30f51da5b8f9a50d031f409b96b5d4a2eb35d68" || { echo "LineageOS head moved: inspect before updating"; exit 1; }
+          export SOURCE_SHA
+          python3 - <<'PY'
+          import os, pathlib, subprocess
+          baseline = set(subprocess.check_output(["git","ls-tree","-r","--name-only",os.environ["SOURCE_SHA"]], text=True).splitlines())
+          tracked = subprocess.check_output(["git","ls-files","-z"]).decode().split("\0")
+          reserved = {".github/workflows/mirror-lineage.yml"}
+          for path in tracked:
+              if path and path not in baseline and path not in reserved:
+                  subprocess.run(["git", "rm", "-f", "-q", "--", path], check=True)
+          PY
+          GIT_LFS_SKIP_SMUDGE=1 git checkout "$SOURCE_SHA" -- . ':(exclude).github/workflows'
+          python3 - <<'PY'
+          from pathlib import Path
+          original = Path("lineage_blueline.mk").read_text()
+          assert "vendor/lineage/config/common_full_phone.mk" in original
+          assert "PRODUCT_NAME := lineage_blueline" in original
+          adapted = original.replace("vendor/lineage/config/common_full_phone.mk", "vendor/infinity/config/common_full_phone.mk")
+          adapted = adapted.replace("PRODUCT_NAME := lineage_blueline", "PRODUCT_NAME := infinity_blueline")
+          adapted = ("# Pixel 3 Infinity-X product built from untouched LineageOS 24.0 hardware files\n"
+                     "INFINITY_MAINTAINER := Hecker\n"
+                     "WITH_GAPPS ?= true\n"
+                     "TARGET_HAS_UDFPS := false\n"
+                     "TARGET_FACE_UNLOCK_SUPPORTED := false\n\n" + adapted)
+          Path("infinity_blueline.mk").write_text(adapted)
+          Path("AndroidProducts.mk").write_text(
+              "# Only the Infinity-X Pixel 3 product (hardware files otherwise match LineageOS)\n"
+              "PRODUCT_MAKEFILES := $(LOCAL_DIR)/infinity_blueline.mk\n"
+              "COMMON_LUNCH_CHOICES := infinity_blueline-cp2a-userdebug\n")
+          PY
+          test -f device-lineage.mk
+          test -f blueline/device-lineage.mk
+          test -f development/adb.mk
+          test -f device.mk
+          git add -A
+          git diff --cached --stat
+          if git diff --cached --quiet; then
+            echo "Already matches LineageOS snapshot"
+            exit 0
+          fi
+          git commit -m "Reset Pixel 3 device to proven LineageOS 24.0 source"
+          git push origin HEAD:main
