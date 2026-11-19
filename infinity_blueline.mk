@@ -11,21 +11,19 @@ TARGET_FACE_UNLOCK_SUPPORTED := false
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Unofficial vanilla LineageOS 24.0 / Android 17 for Pixel 3.
+# Infinity-X Android 17 for Pixel 3 (LineageOS 24.0 hardware baseline).
 
-# Pixel 3's userdebug bring-up needs the Lineage debug *build* switch, not
-# just USB properties.  Without it Lineage's common.mk sets
-# PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG=true and ro.adb.secure=1, leaving adbd
-# disabled despite the persist.sys.usb.config=adb image default.
-# Resolve this before inheriting vendor/infinity/config/common_full_phone.mk.
+# The bring-up build keeps ADB authentication on. An optional *host public key*
+# can be bundled via PRODUCT_ADB_KEYS, so only the developer's own computer
+# connects without a prompt. Never enable wildcard USB trust in a release.
 PIXEL3_DEV_USB_ADB ?= $(if $(filter userdebug eng,$(TARGET_BUILD_VARIANT)),true,false)
 ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),true)
 ifeq ($(filter userdebug eng,$(TARGET_BUILD_VARIANT)),)
 $(error PIXEL3_DEV_USB_ADB=true requires a userdebug or eng build)
 endif
-WITH_ADB_INSECURE := true
+# Infinity-X common.mk must take its authenticated ADB branch for userdebug.
+WITH_ADB_INSECURE :=
 else ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),false)
-# Restore normal Lineage defaults when explicitly disabled.
 WITH_ADB_INSECURE :=
 else
 $(error PIXEL3_DEV_USB_ADB must be true or false)
@@ -33,6 +31,12 @@ endif
 
 # Inherit some common Lineage stuff.
 $(call inherit-product, vendor/infinity/config/common_full_phone.mk)
+
+# Infinity-X defaults userdebug to ro.debuggable=0 unless explicitly restored.
+# Do this *after* inheriting common_full_phone.mk to prevent that override.
+ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),true)
+PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG := false
+endif
 
 # Inherit device configuration
 $(call inherit-product, device/google/crosshatch/aosp_blueline.mk)
