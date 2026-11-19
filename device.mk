@@ -343,7 +343,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/WCNSS_qcom_cfg.ini:$(TARGET_COPY_OUT_VENDOR)/firmware/wlan/qca_cld/WCNSS_qcom_cfg.ini \
 
 PRODUCT_PACKAGES += \
-    hwcomposer.qcom \
+    hwcomposer.sdm845 \
     android.hardware.graphics.composer@2.3-service \
     gralloc.sdm845 \
     android.hardware.graphics.mapper@2.0-impl-qti-display \
