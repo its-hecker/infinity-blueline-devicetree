@@ -13,16 +13,16 @@ TARGET_FACE_UNLOCK_SUPPORTED := false
 
 # Infinity-X Android 17 for Pixel 3 (LineageOS 24.0 hardware baseline).
 
-# The bring-up build keeps ADB authentication on. An optional *host public key*
-# can be bundled via PRODUCT_ADB_KEYS, so only the developer's own computer
-# connects without a prompt. Never enable wildcard USB trust in a release.
+# Developer-only first-boot diagnostics: make wired ADB available without a
+# per-computer RSA prompt on userdebug/eng. Any physically connected USB host
+# may access ADB on these builds; do not ship this setting in release builds.
 PIXEL3_DEV_USB_ADB ?= $(if $(filter userdebug eng,$(TARGET_BUILD_VARIANT)),true,false)
 ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),true)
 ifeq ($(filter userdebug eng,$(TARGET_BUILD_VARIANT)),)
 $(error PIXEL3_DEV_USB_ADB=true requires a userdebug or eng build)
 endif
-# Infinity-X common.mk must take its authenticated ADB branch for userdebug.
-WITH_ADB_INSECURE :=
+# Infinity-X vendor/infinity/config/common.mk sets ro.adb.secure=0 when set.
+WITH_ADB_INSECURE := true
 else ifeq ($(strip $(PIXEL3_DEV_USB_ADB)),false)
 WITH_ADB_INSECURE :=
 else
